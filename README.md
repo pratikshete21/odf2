@@ -1,55 +1,47 @@
-import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation;
-import com.hierynomus.msfscc.fileinformation.FileInformation;
-import com.hierynomus.protocol.commons.buffer.Buffer;
-import com.hierynomus.protocol.transport.TransportException;
-import com.hierynomus.smbj.*;
-import com.hierynomus.smbj.auth.AuthenticationContext;
-import com.hierynomus.smbj.common.SmbPath;
-import com.hierynomus.smbj.connection.Connection;
-import com.hierynomus.smbj.session.Session;
+import com.hierynomus.smbj.SMBClient;
 import com.hierynomus.smbj.share.DiskShare;
 import com.hierynomus.smbj.share.File;
-import com.hierynomus.smbj.share.Share;
 
 import java.io.IOException;
-import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-public class SmbFileToByteArrayExample {
+public class GetAllFilesFromShareFolderToByteArray {
 
-    public static void main(String[] args) {
-        String serverName = "serverName";
-        String shareName = "shareName";
-        String filePath = "path/to/your/file.txt";
-        
-        try (Connection connection = SmbConfig.builder().build().getConnections().get(0)) {
-            AuthenticationContext auth = new AuthenticationContext("username", "password".toCharArray(), "domain");
-            Session session = connection.authenticate(auth);
-            
-            SmbPath smbPath = new SmbPath("smb://" + serverName + "/" + shareName);
-            DiskShare share = (DiskShare) session.connectShare(smbPath.getShareName());
+    public static void main(String[] args) throws Exception {
+        // Create a SMBClient instance
+        SMBClient client = new SMBClient();
 
-            File file = share.openFile(filePath, EnumSet.of(AccessMask.GENERIC_READ), null, null, null, null);
-            
-            // Read the file into a byte array
-            byte[] byteArray = readSmbFileToByteArray(file);
-            
-            // Do something with the byte array
-            System.out.println("File content as a byte array: " + new String(byteArray));
-        } catch (IOException | TransportException e) {
-            e.printStackTrace();
-        }
-    }
+        // Connect to the server
+        client.connect("192.168.1.100", 445);
 
-    private static byte[] readSmbFileToByteArray(File file) throws IOException {
-        int bufferSize = 1024;
-        byte[] buffer = new byte[bufferSize];
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        // Authenticate with the server
+        Session session = client.authenticate("username", "password");
 
-        int bytesRead;
-        while ((bytesRead = file.read(buffer)) != -1) {
-            byteArrayOutputStream.write(buffer, 0, bytesRead);
-        }
+        // Get the shared folder
+        DiskShare share = (DiskShare) session.connectShare("/sharedfolder");
 
-        return byteArrayOutputStream.toByteArray();
+        // Get the list of files in the directory
+        Path directory = Paths.get("/sharedfolder");
+        Files.walk(directory).forEach(file -> {
+            if (Files.isRegularFile(file)) {
+                // Get the file
+                File smbFile = share.openFile(file.toString());
+
+                // Read the file into a byte array
+                byte[] bytes = new byte[(int) smbFile.length()];
+                smbFile.read(bytes);
+
+                // Do something with the file
+                System.out.println(new String(bytes));
+
+                // Close the file
+                smbFile.close();
+            }
+        });
+
+        // Disconnect from the server
+        client.disconnect();
     }
 }
