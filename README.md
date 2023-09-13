@@ -1,48 +1,55 @@
-# odf2
+import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation;
+import com.hierynomus.msfscc.fileinformation.FileInformation;
+import com.hierynomus.protocol.commons.buffer.Buffer;
+import com.hierynomus.protocol.transport.TransportException;
+import com.hierynomus.smbj.*;
+import com.hierynomus.smbj.auth.AuthenticationContext;
+import com.hierynomus.smbj.common.SmbPath;
+import com.hierynomus.smbj.connection.Connection;
+import com.hierynomus.smbj.session.Session;
+import com.hierynomus.smbj.share.DiskShare;
+import com.hierynomus.smbj.share.File;
+import com.hierynomus.smbj.share.Share;
 
-import jcifs.smb.SmbFile;
-import jcifs.smb.SmbException;
-import jcifs.smb.SmbFileInputStream;
-import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 
-public class JCIFSShareFolderExample {
+public class SmbFileToByteArrayExample {
+
     public static void main(String[] args) {
-        // Define the shared folder path
-        String sharedFolderPath = "smb://server/share";
+        String serverName = "serverName";
+        String shareName = "shareName";
+        String filePath = "path/to/your/file.txt";
+        
+        try (Connection connection = SmbConfig.builder().build().getConnections().get(0)) {
+            AuthenticationContext auth = new AuthenticationContext("username", "password".toCharArray(), "domain");
+            Session session = connection.authenticate(auth);
+            
+            SmbPath smbPath = new SmbPath("smb://" + serverName + "/" + shareName);
+            DiskShare share = (DiskShare) session.connectShare(smbPath.getShareName());
 
-        // Define the Excel file name you want to retrieve
-        String excelFileName = "example.xlsx";
-
-        // Define your credentials (username and password)
-        String username = "your_username";
-        String password = "your_password";
-
-        try {
-            // Create an SMB file object with the shared folder path and credentials
-            SmbFile smbFile = new SmbFile(sharedFolderPath + "/" + excelFileName, new jcifs.smb.NtlmPasswordAuthentication(null, username, password));
-
-            // Check if the shared file exists
-            if (smbFile.exists() && smbFile.isFile()) {
-                // Read the Excel file into a byte array
-                try (SmbFileInputStream inputStream = new SmbFileInputStream(smbFile)) {
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        outputStream.write(buffer, 0, bytesRead);
-                    }
-                    byte[] excelBytes = outputStream.toByteArray();
-
-                    // Now you have the Excel file content in excelBytes byte array
-                    // You can process or save it as needed
-                }
-            } else {
-                System.err.println("Excel file does not exist in the shared folder.");
-            }
-        } catch (SmbException e) {
-            e.printStackTrace();
-        } catch (Exception e) {
+            File file = share.openFile(filePath, EnumSet.of(AccessMask.GENERIC_READ), null, null, null, null);
+            
+            // Read the file into a byte array
+            byte[] byteArray = readSmbFileToByteArray(file);
+            
+            // Do something with the byte array
+            System.out.println("File content as a byte array: " + new String(byteArray));
+        } catch (IOException | TransportException e) {
             e.printStackTrace();
         }
+    }
+
+    private static byte[] readSmbFileToByteArray(File file) throws IOException {
+        int bufferSize = 1024;
+        byte[] buffer = new byte[bufferSize];
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+
+        int bytesRead;
+        while ((bytesRead = file.read(buffer)) != -1) {
+            byteArrayOutputStream.write(buffer, 0, bytesRead);
+        }
+
+        return byteArrayOutputStream.toByteArray();
     }
 }
