@@ -1,47 +1,101 @@
-import com.hierynomus.smbj.SMBClient;
-import com.hierynomus.smbj.share.DiskShare;
-import com.hierynomus.smbj.share.File;
+package com.ecs.odf2.utils;
 
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import com.ecs.odf2.entity.ExcelDetails;
+
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-public class GetAllFilesFromShareFolderToByteArray {
+public class ExcelUtils {
+	public void getDataFromExcel(String excelPath) {
+//		List<Map<String, Object>> dataList = new ArrayList<>();
+		List<ExcelDetails> excelDataList = new ArrayList<>();
 
-    public static void main(String[] args) throws Exception {
-        // Create a SMBClient instance
-        SMBClient client = new SMBClient();
+		try (FileInputStream fis = new FileInputStream(excelPath); Workbook workbook = new XSSFWorkbook(fis)) {
 
-        // Connect to the server
-        client.connect("192.168.1.100", 445);
+			Sheet sheet = workbook.getSheetAt(0);
 
-        // Authenticate with the server
-        Session session = client.authenticate("username", "password");
+			// Get the headers (assuming the first row contains column names)
+			Row headerRow = sheet.getRow(0);
+			List<String> columnNames = new ArrayList<>();
+			for (Cell cell : headerRow) {
+				columnNames.add(cell.getStringCellValue());
+			}
 
-        // Get the shared folder
-        DiskShare share = (DiskShare) session.connectShare("/sharedfolder");
+			// Loop through the data rows and create maps
+			for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+				Row dataRow = sheet.getRow(rowIndex);
+//				Map<String, Object> rowData = new HashMap<>();
+				ExcelDetails excelDetails = new ExcelDetails();
 
-        // Get the list of files in the directory
-        Path directory = Paths.get("/sharedfolder");
-        Files.walk(directory).forEach(file -> {
-            if (Files.isRegularFile(file)) {
-                // Get the file
-                File smbFile = share.openFile(file.toString());
+				for (int colIndex = 0; colIndex < columnNames.size(); colIndex++) {
+					Cell cell = dataRow.getCell(colIndex);
 
-                // Read the file into a byte array
-                byte[] bytes = new byte[(int) smbFile.length()];
-                smbFile.read(bytes);
+					// Determine the data type and store accordingly
+					if (cell != null) {
+						switch (cell.getCellType()) {
+						case STRING:
+							setExcelDetails(columnNames.get(colIndex), cell.getStringCellValue(), excelDetails);
+							break;
+						case NUMERIC:
+							setExcelDetails(columnNames.get(colIndex), cell.getNumericCellValue(), excelDetails);
+							break;
+						case BOOLEAN:
+							setExcelDetails(columnNames.get(colIndex), cell.getBooleanCellValue(), excelDetails);
+							break;
+						case BLANK:
+							setExcelDetails(columnNames.get(colIndex), null, excelDetails);
+							break;
+						default:
+							setExcelDetails(columnNames.get(colIndex), null, excelDetails);
+						}
+					} else {
+						setExcelDetails(columnNames.get(colIndex), null, excelDetails);
+					}
+				}
 
-                // Do something with the file
-                System.out.println(new String(bytes));
+				excelDataList.add(excelDetails);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
-                // Close the file
-                smbFile.close();
-            }
-        });
+		// Print the list of maps
+		for (ExcelDetails row : excelDataList) {
+			System.out.println(row.toString());
+		}
+	}
 
-        // Disconnect from the server
-        client.disconnect();
-    }
+	public static void setExcelDetails(String columnName, Object cellValue, ExcelDetails excelDetails) {
+		if (columnName.toLowerCase().contains("mobile")) {
+			excelDetails.setMobile(String.valueOf(Math.round((double) cellValue)));
+		} else if (columnName.toLowerCase().contains("order")) {
+			excelDetails.setOrder(String.valueOf(cellValue));
+		} else if (columnName.toLowerCase().contains("delivery note")) {
+			excelDetails.setNote(String.valueOf(cellValue));
+		} else if (columnName.toLowerCase().contains("customer id")) {
+			excelDetails.setCustomerId(String.valueOf(Math.round((double) cellValue)));
+		} else if (columnName.toLowerCase().contains("order date")) {
+			excelDetails.setOrderDate(String.valueOf(cellValue));
+		} else if (columnName.toLowerCase().contains("dispatch date")) {
+			excelDetails.setDispatchDate(String.valueOf(cellValue));
+		} else if (columnName.toLowerCase().contains("emailid")) {
+			excelDetails.setMailId(String.valueOf(cellValue));
+		} else if (columnName.toLowerCase().contains("delivery status")) {
+			excelDetails.setStatus(String.valueOf(cellValue));
+		} else if (columnName.toLowerCase().contains("customer name")) {
+			excelDetails.setCustomerName(String.valueOf(cellValue));
+		}
+	}
+
+	public static void main(String[] args) {
+		ExcelUtils excelUtils = new ExcelUtils();
+		excelUtils.getDataFromExcel("C:\\Users\\shete\\Downloads\\dispatch.xlsx");
+	}
 }
