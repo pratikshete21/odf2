@@ -1,54 +1,47 @@
-package com.wf.uc.utils;
+package com.ecs.odf2.utils;
 
 import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 
-import java.io.FileWriter;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class CsvUtils {
-	
-	/*<dependency>
-    <groupId>org.apache.commons</groupId>
-    <artifactId>commons-csv</artifactId>
-    <version>1.8</version>
-    </dependency>*/
+	public List<Map<String, String>> csvToListOfMaps(String path) {
+		// Replace "your_csv_file.csv" with the path to your CSV file
+		String csvFile = "C:\\Users\\shete\\ecs\\dispatch-system\\dispatch-system-package\\src\\main\\resources\\datastore\\migrations\\versioned\\usecase_config.csv";
 
+		List<Map<String, String>> dataList = new ArrayList<>();
 
-	public static void convertListofMapsToCSV(List<Map<String, String>> dataList, String filePath) throws IOException {
-		try (CSVPrinter csvPrinter = new CSVPrinter(new FileWriter(filePath), CSVFormat.DEFAULT)) {
+		try (FileReader reader = new FileReader(csvFile);
+				CSVParser csvParser = CSVFormat.DEFAULT.withHeader().parse(reader)) {
 
-			// Print the header row
-			if (!dataList.isEmpty()) {
-				Map<String, String> firstRow = dataList.get(0);
-				csvPrinter.printRecord(firstRow.keySet());
+			for (CSVRecord csvRecord : csvParser) {
+				Map<String, String> rowMap = new HashMap<>();
+
+				// Iterate through the columns using the header names
+				for (String header : csvParser.getHeaderNames()) {
+					String value = csvRecord.get(header);
+					rowMap.put(header, value);
+				}
+
+				dataList.add(rowMap);
 			}
 
-			// Print the data rows
-			for (Map<String, String> data : dataList) {
-				csvPrinter.printRecord(data.values());
-			}
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
-	}
 
-	public static void main(String[] args) throws IOException {
-		List<Map<String, String>> dataList = new ArrayList<Map<String, String>>();
-		Map<String, String> map = new LinkedHashMap<>();
-		map.put("name", "dilip");
-		map.put("age", "2");
-		dataList.add(map);
+		// Print the list of maps
+		for (Map<String, String> row : dataList) {
+			System.out.println(row);
+		}
 
-		Map<String, String> map2 = new LinkedHashMap<>();
-		map2.put("name", "pratik");
-		map2.put("age", "1");
-		dataList.add(map2);
-
-		/* Your list of maps */;
-		String filePath = "C:\\Users\\shete\\Downloads\\output.csv";
-		convertListofMapsToCSV(dataList, filePath);
+		return dataList;
 	}
 }
