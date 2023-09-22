@@ -1,196 +1,86 @@
-package com.wf.uc.utils;
+package com.ecs.odf2.utils;
 
-import java.awt.Rectangle;
-import java.awt.Robot;
-import java.awt.Toolkit;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Image;
+import com.itextpdf.text.PageSize;
+import com.itextpdf.text.pdf.PdfWriter;
+import com.itextpdf.text.pdf.codec.PngImage;
+
+import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 import javax.imageio.ImageIO;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Image;
+import com.itextpdf.text.pdf.PdfWriter;
+import com.itextpdf.text.pdf.codec.PngImage;
 
-/**
- * @author shete
- *
- */
-public class CommonUtils {
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
-	public static void main(String[] args) throws Exception {
-		// TODO Auto-generated method stub
+<!-- https://mvnrepository.com/artifact/com.itextpdf/itextpdf -->
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>itextpdf</artifactId>
+			<version>5.5.13.3</version>
+		</dependency>
 
-		/*
-		 * try { System.out.println(readPdfAsText(Files.readAllBytes(Paths.
-		 * get("C:\\Users\\shete\\OneDrive\\Desktop\\Documents\\Screenshot 2023-07-24 213108.png"
-		 * )))); } catch (Exception e) { // TODO Auto-generated catch block
-		 * e.printStackTrace(); }
-		 */
+public class ScreenshotsToPdfConverter {
 
-		/*
-		 * try { System.out.println(readPdfAsText(takeScreenshot())); } catch (Exception
-		 * e) { // TODO Auto-generated catch block e.printStackTrace(); }
-		 */
-		
-		List<Map<String, String>> csvData= new ArrayList<Map<String, String>>();
-		Map<String, String> e= new LinkedHashMap<>();
-		e.put("my ,name", "pratik");
-		e.put("surname", "shete, ");
-		csvData.add(e);
-		System.out.println(createCsvFileWithList(csvData));
-		
-
-	}
-
-	/**
-	 * This method return text from pdf
-	 * 
-	 * @param pdfByte
-	 * @return String text
-	 * @throws Exception
-	 */
-	public static String readPdfAsText(byte[] pdfByte) throws Exception {
-
-		String text;
+	public void convertScreenshotsToPdf(List<byte[]> screenshotList, String outputPdfPath) {
 		try {
-			// Loading an existing document
-			PDDocument document = PDDocument.load(pdfByte);
-			// Instantiate PDFTextStripper class
-			PDFTextStripper pdfStripper = new PDFTextStripper();
-			// Retrieving text from PDF document
-			text = pdfStripper.getText(document);
-			// Closing the document
+			Document document = new Document();
+
+			PdfWriter.getInstance(document, new FileOutputStream(outputPdfPath));
+			document.open();
+
+			for (byte[] screenshotByteArray : screenshotList) {
+				BufferedImage awtImage = ImageIO.read(new ByteArrayInputStream(screenshotByteArray));
+
+				int imageWidth = awtImage.getWidth();
+				int imageHeight = awtImage.getHeight();
+
+				// Create a page with the dimensions of the screenshot
+				document.setPageSize(new com.itextpdf.text.Rectangle(imageWidth, imageHeight));
+
+				// Convert the AWT image to an iText Image
+				Image pdfImage = Image.getInstance(awtImage, null);
+				document.newPage();
+				// Add the image to the PDF
+				document.add(pdfImage);
+
+				document.newPage(); // Add a new page for the next screenshot
+			}
+
 			document.close();
-		} catch (Exception e) {
-			text = "";
+		} catch (IOException | DocumentException e) {
+			e.printStackTrace();
 		}
-		return text;
 	}
 
-	/**
-	 * This method return the screenshot in byte[]
-	 * 
-	 * @return byte[]
-	 * @throws Exception
-	 */
-	public static byte[] takeScreenshot() throws Exception {
-		byte[] byteArray;
-		try {
+	public static void main(String[] args) throws IOException {
+		List<byte[]> screenshotList = Arrays.asList(Files.readAllBytes(Paths.get("C:\\Users\\shete\\Downloads\\1.png")),
+				Files.readAllBytes(Paths.get("C:\\Users\\shete\\Downloads\\2.png")),
+				Files.readAllBytes(Paths.get("C:\\Users\\shete\\Downloads\\3.png")));
+		/* Your list of screenshot byte arrays */;
+		String outputPdfPath = System.getProperty("user.home") + File.separator + "imagep1df.pdf";
 
-			Thread.sleep(120);
-			Robot r = new Robot();
+		ScreenshotsToPdfConverter converter = new ScreenshotsToPdfConverter();
+		converter.convertScreenshotsToPdf(screenshotList, outputPdfPath);
 
-			UUID uuid = UUID.randomUUID();
-			String pathString = System.getProperty("user.home") + File.separator + uuid + ".png";
-			Path path = Paths.get(pathString);
-
-			Rectangle capture = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-			BufferedImage image = r.createScreenCapture(capture);
-
-			ImageIO.write(image, "png", new File(pathString));
-			byteArray = Files.readAllBytes(path);
-			Files.deleteIfExists(path);
-			System.out.println("ScreenShot Byte: not null");
-
-		} catch (Exception e) {
-			byteArray = null;
-			System.out.println("ScreenShot Byte: " + null);
-		}
-		return byteArray;
+		System.out.println("PDF created successfully.");
 	}
-
-	/**
-	 * This method copy all xml bot files from target/classes to resourse folder
-	 * 
-	 * @throws Exception
-	 */
-	public static void copyXmlBotFilesInResourseFolder() throws Exception {
-
-		FileUtils.copyDirectory(new File("target/classes/configs/main"), new File("src/main/resources/configs/main"));
-	}
-
-	/**
-	 * This method creates csv file from list of maps
-	 * 
-	 * @param List<Map<String,String>>csvData
-	 * @return csvFilePath in String
-	 */
-	public static String createCsvFileWithList(List<Map<String, String>> csvData) {
-
-		UUID uuid = UUID.randomUUID();
-		String filePath = System.getProperty("user.home") + File.separator + uuid + ".csv";
-		try {
-			FileWriter writer = new FileWriter(filePath);
-			String header = "";
-			for (String key : csvData.get(0).keySet()) {
-				header = header + "\"" + key + "\"" + ",";
-			}
-			header = header + "\n";
-
-			writer.append(header);
-
-			for (int i = 0; i < csvData.size(); i++) {
-				String row = "";
-				for (String key : csvData.get(0).keySet()) {
-					row = row + "\"" + csvData.get(i).get(key) + "\",";
-				}
-				row = row + "\n";
-				writer.append(row);
-			}
-
-			writer.close();
-
-		} catch (Exception e) {
-			return "";
-		}
-		return filePath;
-	}
-	
-	public static String sendGetRequest(String url, String username, String password) throws IOException {
-	    URL urlObj = new URL(url);
-	    HttpURLConnection connection = (HttpURLConnection) urlObj.openConnection();
-	    
-	    // Set up the HTTP GET request
-	    connection.setRequestMethod("GET");
-	    connection.setRequestProperty("Authorization", "Basic " + getBase64Auth(username, password));
-	    
-	    int responseCode = connection.getResponseCode();
-	    
-	    if (responseCode == HttpURLConnection.HTTP_OK) {
-	        // Read the response
-	        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-	        String inputLine;
-	        StringBuilder response = new StringBuilder();
-	        
-	        while ((inputLine = in.readLine()) != null) {
-	            response.append(inputLine);
-	        }
-	        in.close();
-	        
-	        return response.toString();
-	    } else {
-	        throw new IOException("HTTP GET request failed with error code: " + responseCode);
-	    }
-	}
-
-	public static String getBase64Auth(String username, String password) {
-	    String userpass = username + ":" + password;
-	    return java.util.Base64.getEncoder().encodeToString(userpass.getBytes());
-	}
-
 }
